@@ -1,0 +1,205 @@
+# 2022-06-04
+
+substitutions:
+  host_name: switch-alexroom
+  device_name: switch_alexroom
+  friendly_name: Switch Alexroom
+
+esphome:
+  name: ${host_name}
+  platform: ESP8266
+  board: esp01_1m
+
+# Enable logging
+logger:
+  level: INFO
+  logs:
+    mqtt.component: INFO
+    mqtt.client: INFO
+
+# Enable Home Assistant API
+api:
+  password: !secret api_password
+  encryption:
+    key: !secret api_encription_key
+
+ota:
+  password: !secret ota_password
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+  use_address: 192.168.1.138
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: "ESPHome ${device_name}"
+    password: !secret ap_password
+
+captive_portal:
+
+# MQTT
+mqtt:
+  # disable mqtt logging
+  log_topic:
+  id: mqtt_client
+  broker: !secret mqtt_broker
+  client_id: esphome_${device_name}
+  discovery: false
+  discovery_retain: true
+  topic_prefix: ESPHome/${device_name}
+  birth_message:
+    topic: ESPHome/${device_name}/state
+    payload: 1
+    qos: 2
+    retain: true
+  shutdown_message:
+    topic: ESPHome/${device_name}/state
+    payload: 0
+    qos: 2
+    retain: true
+  will_message:
+    topic: ESPHome/${device_name}/state
+    payload: 0
+    qos: 2
+    retain: true
+
+  on_message:
+  - topic: ESPHome/${device_name}/switch/${device_name}_relay/set
+    payload: "ON"
+    then:
+    - switch.turn_on: relay_1
+  - topic: ESPHome/${device_name}/switch/${device_name}_relay/set
+    payload: "OFF"
+    then:
+    - switch.turn_off: relay_1
+
+# web_server:
+#   port: 80
+#   auth:
+#     username: !secret web_username
+#     password: !secret web_password
+#   ota: false
+
+# expose prometheus data
+prometheus:
+
+
+text_sensor:
+  # wifi info
+  - platform: wifi_info
+    ip_address:
+      name: "${friendly_name} WiFi IP"
+  - platform: version
+    name: "${friendly_name} Firmware"
+
+  - platform: template
+    name: "${friendly_name} MAC Address"
+    lambda: 'return {WiFi.macAddress().c_str()};'
+    icon: mdi:fingerprint
+    update_interval: 60s
+    internal: true
+
+  - platform: template
+    name: "${friendly_name} Wifi Strength"
+    id: ${device_name}_wifi_strength
+    icon: "mdi:wifi"
+    lambda: |-
+      if (id(${device_name}_wifi_signal).state > -50 ) {
+        return {"Excellent"};
+      } else if (id(${device_name}_wifi_signal).state > -60) {
+        return {"Good"};
+      } else if (id(${device_name}_wifi_signal).state > -70) {
+        return {"Fair"};
+      } else if (id(${device_name}_wifi_signal).state < -70) {
+        return {"Weak"};
+      } else {
+        return {"None"};
+      }
+    update_interval: 30s
+
+sensor:
+  - platform: uptime
+    name: "${friendly_name} Uptime"
+    id: uptime_sensor
+    update_interval: 60s
+    disabled_by_default: true
+    # on_raw_value:
+    #   then:
+    #     - text_sensor.template.publish:
+    #         id: uptime_human
+    #         state: !lambda |-
+    #           int seconds = round(id(uptime_sensor).raw_state);
+    #           int days = seconds / (24 * 3600);
+    #           seconds = seconds % (24 * 3600);
+    #           int hours = seconds / 3600;
+    #           seconds = seconds % 3600;
+    #           int minutes = seconds /  60;
+    #           seconds = seconds % 60;
+    #           return (
+    #             (days ? to_string(days) + "d " : "") +
+    #             (hours ? to_string(hours) + "h " : "") +
+    #             (minutes ? to_string(minutes) + "m " : "") +
+    #             (to_string(seconds) + "s")
+    #           ).c_str();
+  - platform: wifi_signal
+    name: "${friendly_name} WiFi Signal"
+    id: ${device_name}_wifi_signal
+    update_interval: 30s
+    internal: true
+
+binary_sensor:
+  - platform: gpio
+    pin:
+      number: GPIO0
+      mode: INPUT_PULLUP
+      inverted: True
+    name: "${friendly_name} Touchpad"
+    on_press:
+     then:
+       - switch.toggle: relay_1
+  - platform: status
+    name: "${friendly_name} Status"
+
+time:
+  - platform: homeassistant
+    id: homeassistant_time
+
+switch:
+  - platform: gpio
+    name: "${friendly_name} Relay"
+    id: relay_1
+    pin: GPIO12
+    on_turn_on:
+    - delay: 250ms
+    - light.turn_off: light_1
+    on_turn_off:
+    - delay: 250ms
+    - light.turn_on: light_1
+
+  - platform: restart
+    name: "${friendly_name} Restart"
+    disabled_by_default: true
+
+output:
+  # Register the blue LED as a dimmable output ....
+  - platform: esp8266_pwm
+    id: blue_led
+    pin: GPIO13
+    inverted: True
+
+light:
+  # ... and then make a light out of it.
+  - platform: monochromatic
+    id: light_1
+    name: "${friendly_name} WIFI LED"
+    output: blue_led
+    default_transition_length: 750ms
+    disabled_by_default: true
+
+
+# status_led:
+#   # https://esphome.io/components/status_led
+#   pin:
+#     number: GPIO13
+#     inverted: True
