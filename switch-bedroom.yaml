@@ -71,7 +71,7 @@ mqtt:
     - topic: ESPHome/${device_name}/switch/${device_name}_relay/set
       payload: "OFF"
       then:
-       - switch.turn_off: relay_1
+        - switch.turn_off: relay_1
 
 # web_server:
 #   port: 80
@@ -158,8 +158,8 @@ binary_sensor:
       inverted: True
     name: "${friendly_name} Touchpad"
     on_press:
-     then:
-       - switch.toggle: relay_1
+      then:
+        - switch.toggle: relay_1
   - platform: status
     name: "${friendly_name} Status"
 

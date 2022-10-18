@@ -180,8 +180,8 @@ binary_sensor:
       inverted: True
     name: "${friendly_name} Button"
     on_press:
-     then:
-       - switch.toggle: relay
+      then:
+        - switch.toggle: relay
   - platform: status
     name: "${friendly_name} Status"
 

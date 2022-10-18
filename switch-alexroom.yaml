@@ -156,8 +156,8 @@ binary_sensor:
       inverted: True
     name: "${friendly_name} Touchpad"
     on_press:
-     then:
-       - switch.toggle: relay_1
+      then:
+        - switch.toggle: relay_1
   - platform: status
     name: "${friendly_name} Status"
 
